@@ -34,7 +34,7 @@
 #include "builtins.c"
 #include <limits.h>
 char* shellname;
-
+int echoon = 1;
 long wds;
 void init() {
 	printf("Zero Shell (c) 2015, Marc Sances\n");
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
 	strcpy(shellname,argv[0]);
 	while (1) {
 		char command[256];
-		print_prompt();
+		if (echoon==1) print_prompt();
 		read_command(command);
 		parse_cmd(command);
 	}
