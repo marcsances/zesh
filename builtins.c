@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <limits.h>
 #define MAX_DIRECTORY_STACK 50
+char* shellname;
 void handleerr();
 void echo(int argc, char** argv) {
 	int i;
@@ -48,7 +49,7 @@ void cd(int argc, char** argv) {
 		return;
 	}
 	if (chdir(argv[1])==-1) {
-		fprintf(stderr,"msh: cannot cd to %s: ",argv[1]);
+		fprintf(stderr,"%s: cannot cd to %s: ",shellname,argv[1]);
 		handleerr();
 	}
 }
@@ -66,13 +67,13 @@ void run(int argc, char** argv) {
 	int exitc;
 	switch (pid) {
 		case -1:
-			fprintf(stderr,"msh: fork: operation failed\n");
+			fprintf(stderr,"%s: fork: operation failed\n",shellname);
 			break;
 		case 0:
 			// child process
 			execvp(argv[0],argv);
 			// if we're here, something went wrong.
-			fprintf(stderr,"msh: cannot execute %s: ",argv[0]);
+			fprintf(stderr,"%s: cannot execute %s: ",shellname,argv[0]);
 			handleerr();
 			exit(0); // finish child
 			break;
@@ -80,7 +81,7 @@ void run(int argc, char** argv) {
 			// shell process
 			waitpid(pid,&exitc,0);
 			if (exitc!=0) {
-				fprintf(stderr,"msh: process %d terminated with status code %d\n",pid,exitc);
+				fprintf(stderr,"%s: process %d terminated with status code %d\n",shellname,pid,exitc);
 			}
 			break;	
 	}
@@ -104,7 +105,7 @@ void dirs(int argc, char** argv) {
 
 void pushd(int argc, char** argv) {
 	if (top==MAX_DIRECTORY_STACK) {
-		fprintf(stderr,"msh: cannot pushd: directory stack full\n");
+		fprintf(stderr,"%s: cannot pushd: directory stack full\n",shellname);
 	} else {
 		dstack[top]=getcwd(malloc(PATH_MAX),PATH_MAX); // push current directory to stack
 		top++;
@@ -117,7 +118,7 @@ void popd(int argc, char** argv) {
 	// do nothing if stack is empty
 	if (top!=0) {
 		if (chdir(dstack[top-1])==-1) {
-			fprintf(stderr,"msh: cannot cd to %s: ",argv[1]);
+			fprintf(stderr,"%s: cannot cd to %s: ",argv[1],shellname);
 			handleerr();
 		}
 		top--;

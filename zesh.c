@@ -33,22 +33,17 @@
 #include <stdlib.h>
 #include "builtins.c"
 #include <limits.h>
+char* shellname;
 
-char* path;
 long wds;
 void init() {
 	printf("Zero Shell (c) 2015, Marc Sances\n");
-	path=getenv("PATH");
 }
 
 
 void print_prompt() {
 	char* curdir = getcwd(malloc(PATH_MAX),PATH_MAX);
 	printf("%s:%s=> ",getlogin(),curdir);
-}
-int yo=0;
-void go(xo) {
-	fprintf(stderr,"%d ",xo);
 }
 
 void run_cmd(int argc, char **argv) {
@@ -94,6 +89,8 @@ void read_command(char* cmd) {
 
 int main(int argc, char **argv) {
 	init();
+	shellname=malloc(strlen(argv[0])*sizeof(char));
+	strcpy(shellname,argv[0]);
 	while (1) {
 		char command[256];
 		print_prompt();
