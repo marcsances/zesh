@@ -46,26 +46,6 @@ void print_prompt() {
 	printf("%s:%s=> ",getlogin(),curdir);
 }
 
-void run_cmd(int argc, char **argv) {
-	if (strcmp(argv[0],"echo")==0) {
-			echo(argc,argv);
-	} else if (strcmp(argv[0],"cd")==0 || strcmp(argv[0],"chdir")==0) {
-			cd(argc,argv);
-	} else if (strcmp(argv[0],"exit")==0) {
-			exit(0);
-	} else if (strcmp(argv[0],"exec")==0) {
-			exec(argc,argv);
-	} else if (strcmp(argv[0],"pushd")==0) {
-			pushd(argc,argv);
-	} else if (strcmp(argv[0],"popd")==0) {
-			popd(argc,argv);
-	} else if (strcmp(argv[0],"dirs")==0) {
-			dirs(argc,argv);
-	} else {
-			run(argc,argv);
-	}
-}
-
 void parse_cmd(char* command) {
 	int bs=2048;
 	int s=0;

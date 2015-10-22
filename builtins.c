@@ -136,6 +136,11 @@ void popd(int argc, char** argv) {
 	}
 }
 
+void help(int argc, char** argv) {
+	printf("List of currently supported builtins:\n");
+	printf("cd, chdir, dirs, echo, exec, exit, help, popd, pushd\n");
+}
+
 void handleerr() {
 	switch (errno){
 					case E2BIG:
@@ -177,5 +182,28 @@ void handleerr() {
 					default:
 						fprintf(stderr,"unknown error\n");
 						break;
+	}
+}
+
+
+void run_cmd(int argc, char **argv) {
+	if (strcmp(argv[0],"echo")==0) {
+			echo(argc,argv);
+	} else if (strcmp(argv[0],"cd")==0 || strcmp(argv[0],"chdir")==0) {
+			cd(argc,argv);
+	} else if (strcmp(argv[0],"exit")==0) {
+			exit(0);
+	} else if (strcmp(argv[0],"exec")==0) {
+			exec(argc,argv);
+	} else if (strcmp(argv[0],"pushd")==0) {
+			pushd(argc,argv);
+	} else if (strcmp(argv[0],"popd")==0) {
+			popd(argc,argv);
+	} else if (strcmp(argv[0],"dirs")==0) {
+			dirs(argc,argv);
+	} else if (strcmp(argv[0],"help")==0) {
+			help(argc,argv);
+	} else {
+			run(argc,argv);
 	}
 }
