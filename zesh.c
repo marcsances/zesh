@@ -81,10 +81,29 @@ void parse_cmd(char* command) {
 	run_cmd(i,arr);
 }
 
-void read_command(char* cmd) {
-	// Temporal implementation. A correct implementation should allow 'infinite' strings, relocating buffer from time to time.
-	fgets(cmd,255,stdin);
-	cmd[strlen(cmd)-1]='\0'; //remove trailing \n
+char* read_command() {
+	long i = 0;
+	char* cmd;
+	cmd = (char*)malloc(256 * sizeof(char));
+	char c = fgetc(stdin);
+	int newline = 0;
+	while (newline==0) {
+		while (c!='\n' && c!=EOF && i<256) {
+			cmd[i]=c;
+			i++;
+			c = fgetc(stdin);
+		}
+		if (c=='\n' || c==EOF) {
+			newline=1;
+			cmd[i]=0;
+			
+		} else {
+			// reallocate buffer and continue
+			cmd = (char*) realloc(cmd, i * sizeof(char) + 256);
+		}
+		
+	}
+	return cmd;
 }
 
 int main(int argc, char **argv) {
@@ -92,9 +111,9 @@ int main(int argc, char **argv) {
 	shellname=malloc(strlen(argv[0])*sizeof(char));
 	strcpy(shellname,argv[0]);
 	while (1) {
-		char command[256];
+		char* command;
 		if (echoon==1) print_prompt();
-		read_command(command);
+		command=read_command();
 		parse_cmd(command);
 	}
 }
