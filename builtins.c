@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <limits.h>
+#include <signal.h>
 #define MAX_DIRECTORY_STACK 50
 char* shellname;
 void handleerr();
@@ -62,6 +63,14 @@ void exec(int argc, char** argv) {
 	execvp(argv[1],&argv[1]); // removes exec from argv stack
 }
 
+int cpid=-1;
+
+static void int_catch(int sig) {
+	if (cpid!=-1) {
+		kill(cpid,SIGINT); // send SIGINT to child
+	}
+}
+
 void run(int argc, char** argv) {
 	int pid=fork();
 	int exitc;
@@ -79,10 +88,12 @@ void run(int argc, char** argv) {
 			break;
 		default:
 			// shell process
-			waitpid(pid,&exitc,0);
-			if (exitc!=0) {
-				fprintf(stderr,"%s: process %d terminated with status code %d\n",shellname,pid,exitc);
+			cpid=pid;
+			if (signal(SIGINT,int_catch)==SIG_ERR) {
+				fprintf(stderr,"%s: error while setting up signal handler\n",shellname);
 			}
+			waitpid(pid,&exitc,0);
+			cpid=-1;	
 			break;	
 	}
 }
