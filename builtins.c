@@ -324,6 +324,7 @@ int run_cmd(int argc, char **argv) {
 	} else if (strcmp(argv[0],"exit")==0) {
 			fprintf(stderr,"exit\n");
 			exit(0);
+			return 0;
 	} else if (strcmp(argv[0],"exec")==0) {
 			return exec(argc,argv);
 	} else if (strcmp(argv[0],"pushd")==0) {
@@ -343,6 +344,6 @@ int run_cmd(int argc, char **argv) {
 	} else if (strcmp(argv[0],"runpipe")==0) {
 			return runpipe(argc,argv);
 	} else {
-			run(argc,argv);
+			return run(argc,argv);
 	}
 }

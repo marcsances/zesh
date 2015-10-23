@@ -47,6 +47,7 @@ void print_prompt() {
 }
 
 void parse_cmd(char* command) {
+	if (strlen(command)<=0) return;
 	int bs=2048;
 	int s=0;
 	char **arr=malloc(bs);
