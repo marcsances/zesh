@@ -33,34 +33,38 @@
 #include <limits.h>
 #include <signal.h>
 #define MAX_DIRECTORY_STACK 50
+#define SIGDONE 42
 char* shellname;
 void handleerr();
-void echo(int argc, char** argv) {
+int echo(int argc, char** argv) {
 	int i;
 	for (i=1; i<argc; i++) {
 		printf("%s",argv[i]);
 		if (i<(argc-1)) printf(" ");
 	}
 	printf("\n");
+	return 0;
 }
 
-void cd(int argc, char** argv) {
+int cd(int argc, char** argv) {
 	if (argc<2) {
 		fprintf(stderr,"Usage: cd <directory>\n");
-		return;
+		return 2;
 	}
 	if (chdir(argv[1])==-1) {
 		fprintf(stderr,"%s: cannot cd to %s: ",shellname,argv[1]);
 		handleerr();
 	}
+	return 0;
 }
 
-void exec(int argc, char** argv) {
+int exec(int argc, char** argv) {
 	if (argc<2) {
 		fprintf(stderr,"Usage: exec <filename>\n");
-		return;
+		return 2;
 	}
 	execvp(argv[1],&argv[1]); // removes exec from argv stack
+	return 0;
 }
 
 int cpid=-1;
@@ -70,13 +74,15 @@ static void int_catch(int sig) {
 		kill(cpid,SIGINT); // send SIGINT to child
 	}
 }
+int exitcode=256;
+int lastpid=-1;
+int run(int argc, char** argv) {
+	lastpid=fork();
 
-void run(int argc, char** argv) {
-	int pid=fork();
-	int exitc;
-	switch (pid) {
+	switch (lastpid) {
 		case -1:
 			fprintf(stderr,"%s: fork: operation failed\n",shellname);
+			return 1;
 			break;
 		case 0:
 			// child process
@@ -84,24 +90,26 @@ void run(int argc, char** argv) {
 			// if we're here, something went wrong.
 			fprintf(stderr,"%s: cannot execute %s: ",shellname,argv[0]);
 			handleerr();
-			exit(0); // finish child
+			exit(1); // finish child
 			break;
 		default:
 			// shell process
-			cpid=pid;
+			cpid=lastpid;
 			if (signal(SIGINT,int_catch)==SIG_ERR) {
 				fprintf(stderr,"%s: error while setting up signal handler\n",shellname);
 			}
-			waitpid(pid,&exitc,0);
-			cpid=-1;	
+			waitpid(lastpid,&exitcode,0);
+			cpid=-1;
+			return exitcode;
 			break;	
 	}
+	return 0;
 }
 
 char *dstack[MAX_DIRECTORY_STACK];
 int top=0;
 
-void dirs(int argc, char** argv) {
+int dirs(int argc, char** argv) {
 	if (argc>1 && (strcmp(argv[1],"-c")==0)) {
 		top=0; // clear stack
 	} else {
@@ -112,34 +120,71 @@ void dirs(int argc, char** argv) {
 		}
 		printf("\n");
 	}
+	return 0;
 }
 
-void pushd(int argc, char** argv) {
+int pushd(int argc, char** argv) {
 	if (top==MAX_DIRECTORY_STACK) {
 		fprintf(stderr,"%s: cannot pushd: directory stack full\n",shellname);
+		return 1;
 	} else {
 		dstack[top]=getcwd(malloc(PATH_MAX),PATH_MAX); // push current directory to stack
 		top++;
 		cd(argc,argv); // change to requested directory
 		dirs(1,NULL);  // stat stack status
 	}
+	return 0;
 }
 
-void popd(int argc, char** argv) {
+int popd(int argc, char** argv) {
 	// do nothing if stack is empty
 	if (top!=0) {
 		if (chdir(dstack[top-1])==-1) {
 			fprintf(stderr,"%s: cannot cd to %s: ",argv[1],shellname);
 			handleerr();
+			return 1;
 		}
 		top--;
 	}
+	return 0;
 }
 
-void help(int argc, char** argv) {
-	printf("List of currently supported builtins:\n");
-	printf("cd, chdir, dirs, echo, exec, exit, help, popd, pushd\n");
+int _c(char* a, char* b) {
+	return strcmp(a,b)==0;
 }
+
+int helpw(int argc, char** argv) {
+	if (argc==8 && _c(argv[1],"my") && _c(argv[2],"os") && _c(argv[3],"defaulted") && _c(argv[4],"me") && _c(argv[5],"to")
+	&& _c(argv[6],"this") && _c(argv[7],"shell")) {
+		printf("Blame the developer of your OS.\n");
+		return 1;
+	} else return 0;
+}
+
+
+int help(int argc, char** argv) {
+	if (helpw(argc,argv)) return 42;
+	// real help command starts here
+	printf("List of currently supported builtins:\n");
+	printf("cd, chdir, dirs, echo, exec, exit, exitc, help, popd, pushd, pwd, runpipe, setpipe\n");
+	return 0;
+}
+
+int exitc(int argc, char** argv) {
+	if (lastpid!=-1 && exitcode!=256) {
+		printf("Last process executed with PID %d and exit code %d\n",lastpid,exitcode);
+		return 0;
+	} else {
+		printf("Couldn't execute last process or unknown exit code.\n");
+		return 32;
+	}
+}
+
+int pwd(int argc, char** argv) {
+	printf("%s\n",getcwd(malloc(PATH_MAX),PATH_MAX));
+	return 0;
+}
+
 
 void handleerr() {
 	switch (errno){
@@ -185,24 +230,118 @@ void handleerr() {
 	}
 }
 
+int pipeargc=0;
+char** pipeargv=NULL;
 
-void run_cmd(int argc, char **argv) {
+int setpipe(int argc, char** argv) {
+	if (argc<2) {
+		fprintf(stderr,"Usage: setpipe <command>\n");
+		return 2;
+	}
+	pipeargc=argc-1;
+	pipeargv=&argv[1];
+	return 1;
+}
+
+void sd_hd(int sig) {
+	
+}
+int _startpipe(int* fd, int argc1, char **argv1, int argc2, char **argv2) {
+	int pid1 = fork();
+	int pid2;
+	int exitc1;
+	int exitc2;
+	signal(SIGDONE,sd_hd);
+	switch (pid1) {
+		case -1:
+			fprintf(stderr,"%s: fork: operation failed",shellname);
+			kill(pid2,SIGKILL);
+			return 1;
+		case 0:
+			// child process
+			close(0);	// close stdin
+			dup(fd[0]); // connect stdin with pipe read end
+			close(fd[1]); // close write end of pipe
+			int c2 = run_cmd(argc2,argv2);
+			close(fd[0]); // close pipe read end
+			close(1); // close stdout
+			exit(c2); // terminate child
+			break;
+		default:
+			// parent process
+			pid2=fork();
+			switch (pid2) {
+				case -1:
+					fprintf(stderr,"%s: fork: operation failed",shellname);
+					kill(pid1,SIGKILL);
+					return 1;
+				case 0:
+					// child process
+					close(1); // close stdout
+					dup(fd[1]); // connect stdout with pipe write end
+					close(fd[0]); // close read end of pipe 
+					int c = run_cmd(argc1,argv1);
+					close(fd[1]); // close pipe write end
+					close(0); // close stdin
+					kill(pid1,SIGTERM); // terminate child 1
+					kill(getppid(),SIGDONE);
+					exit(c); // terminate child 
+					
+					break;
+			
+			}
+			
+	}
+	
+	pause();
+	fflush(stdout);
+	lastpid=pid2;
+	exitcode=exitc2; 
+	pipeargc=0;
+	pipeargv=NULL;
+	return exitc2;
+}
+
+int runpipe(int argc, char** argv) {
+	if (argc<2) {
+		fprintf(stderr,"Usage: runpipe <command>\n");
+		return 2;
+	} else if (pipeargc==0 || pipeargv==NULL ){
+		fprintf(stderr,"%s: cannot create pipe: no left command set, use setpipe to set left command\n",shellname);
+		return 2;
+	} else {
+		int fd[2];
+		pipe(fd);
+		return _startpipe(fd,pipeargc,pipeargv,argc-1,&argv[1]);
+	}
+}
+
+int run_cmd(int argc, char **argv) {
 	if (strcmp(argv[0],"echo")==0) {
-			echo(argc,argv);
+			return echo(argc,argv);
 	} else if (strcmp(argv[0],"cd")==0 || strcmp(argv[0],"chdir")==0) {
-			cd(argc,argv);
+			return cd(argc,argv);
 	} else if (strcmp(argv[0],"exit")==0) {
+			fprintf(stderr,"exit\n");
 			exit(0);
 	} else if (strcmp(argv[0],"exec")==0) {
-			exec(argc,argv);
+			return exec(argc,argv);
 	} else if (strcmp(argv[0],"pushd")==0) {
-			pushd(argc,argv);
+			return pushd(argc,argv);
 	} else if (strcmp(argv[0],"popd")==0) {
-			popd(argc,argv);
+			return popd(argc,argv);
 	} else if (strcmp(argv[0],"dirs")==0) {
-			dirs(argc,argv);
+			return dirs(argc,argv);
 	} else if (strcmp(argv[0],"help")==0) {
-			help(argc,argv);
+			return help(argc,argv);
+	} else if (strcmp(argv[0],"exitc")==0) {
+			return exitc(argc,argv);
+	} else if (strcmp(argv[0],"pwd")==0) {
+			return pwd(argc,argv);
+	} else if (strcmp(argv[0],"setpipe")==0) {
+			return setpipe(argc,argv);
+	} else if (strcmp(argv[0],"runpipe")==0) {
+			return runpipe(argc,argv);
 	} else {
 			run(argc,argv);
 	}
