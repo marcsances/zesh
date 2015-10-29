@@ -243,12 +243,21 @@ int setpipe(int argc, char** argv) {
 	return 1;
 }
 
+
+int _pid1, _pid2;
 void sd_hd(int sig) {
-	
+	waitpid(_pid1,NULL,NULL);
+	waitpid(_pid2,NULL,NULL);
+	waitpid(_pid1,NULL,NULL);
 }
+
+
+
 int _startpipe(int* fd, int argc1, char **argv1, int argc2, char **argv2) {
 	int pid1 = fork();
 	int pid2;
+	_pid1=pid1;
+	_pid2=pid2;
 	int exitc1;
 	int exitc2;
 	signal(SIGDONE,sd_hd);
